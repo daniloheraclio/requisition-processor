@@ -11,7 +11,9 @@
             <div class="space-y-4 w-full max-w-[720px] min-w-[720px]">
               <div class="flex justify-between items-center">
                 <Label>Paste the requisition request JSON</Label>
-                <Button @click="formatJson" size="sm">Format JSON</Button>
+                <Button @click="formatJson" variant="outline"
+                  >Format JSON</Button
+                >
               </div>
               <div
                 class="relative h-full overflow-auto bg-slate-50 border border-slate-300 rounded-lg py-2"
@@ -30,7 +32,7 @@
                     <textarea
                       v-model="sourceJson"
                       placeholder="Paste your JSON here..."
-                      class="font-mono text-sm pl-3 flex-grow bg-transparent resize-none w-full min-h-32 focus:outline-none"
+                      class="textarea font-mono text-sm pl-3 flex-grow bg-transparent resize-none w-full min-h-32 focus:outline-none"
                       spellcheck="false"
                     ></textarea>
                   </div>
@@ -121,22 +123,27 @@
                   </CardContent>
                 </Card>
               </div>
-              <Button @click="addNewItem" size="sm">
+              <Button @click="addNewItem">
                 <Plus class="w-4 h-4 mr-2" />
                 Add New Item
               </Button>
             </div>
 
             <!-- RESULT COLUMN -->
-            <div v-if="result" class="space-y-4">
+            <div v-if="result" class="space-y-4 w-full">
               <div class="flex justify-between items-center">
                 <h3 class="text-lg font-semibold">Result</h3>
                 <Button @click="copyToClipboard">Copy to Clipboard</Button>
               </div>
-              <pre class="bg-slate-100 p-4 rounded-lg overflow-auto">
-            {{ result }}
-          </pre
-              >
+
+              <div class="relative w-[720px] min-h-[720px]">
+                <textarea
+                  v-model="result"
+                  class="bg-slate-100 font-mono text-sm p-3 rounded-md w-full min-h-[1080px] h-full focus:outline-none"
+                  spellcheck="false"
+                  disabled
+                ></textarea>
+              </div>
             </div>
           </div>
         </div>
@@ -331,7 +338,6 @@ const validateAndParseJson = (jsonString: string) => {
 
 watch(sourceJson, newVal => {
   if (newVal) {
-    console.log('New JSON:', typeof newVal)
     validateAndParseJson(newVal)
   }
 })
@@ -392,7 +398,7 @@ const generateResultJson = () => {
               MasterItemCode: item.masterItemCode || 'Default Code',
               MasterItemDesc: item.masterItemDesc || 'Default Description',
               LineItemGuid: uuidv4(),
-              LineItemNumber: '13737880',
+              LineItemNumber: '13737880', // Double check this
               ItemTypeCode: 'XD',
               ItemType: 'Default Type',
               ItemUnit: 'unit',
@@ -433,7 +439,7 @@ const getLineNumbers = (text: string) => {
   line-height: 1.5;
 }
 
-textarea {
+.textarea {
   white-space: pre; /* Preserve whitespace formatting */
   line-height: 1.5; /* Ensure consistent line spacing */
   height: 100%; /* Make textarea fill the container vertically */
@@ -442,9 +448,5 @@ textarea {
   resize: none; /* Disable manual resizing */
   overflow-y: hidden; /* Enable vertical scrolling */
   overflow-x: auto;
-}
-
-.relative {
-  font-family: 'Courier New', Courier, monospace; /* IDE-like font */
 }
 </style>

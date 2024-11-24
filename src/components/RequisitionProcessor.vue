@@ -1,129 +1,144 @@
 <template>
-  <div class="p-4 max-w-4xl mx-auto space-y-4">
+  <div class="p-4 mx-auto space-y-4 absolute">
     <Card>
       <CardHeader>
         <CardTitle>CCAC Requisition JSON Transformer</CardTitle>
       </CardHeader>
       <CardContent class="space-y-4">
         <div class="space-y-2">
-          <div class="flex justify-between items-center">
-            <Label>Paste the requisition request JSON</Label>
-            <Button @click="formatJson" size="sm">Format JSON</Button>
-          </div>
-          <div
-            class="relative h-full overflow-auto bg-slate-50 border border-slate-300 rounded-lg"
-          >
-            <div class="flex">
-              <!-- Line Numbers -->
-              <div
-                class="bg-slate-100 text-slate-500 font-mono text-sm text-right select-none w-12 flex-shrink-0"
-              >
-                <pre class="line-numbers">{{ getLineNumbers(sourceJson) }}</pre>
+          <div class="flex items-start justify-start w-full gap-4">
+            <!-- INPUT COLUMN -->
+            <div class="space-y-4 w-full max-w-[720px] min-w-[720px]">
+              <div class="flex justify-between items-center">
+                <Label>Paste the requisition request JSON</Label>
+                <Button @click="formatJson" size="sm">Format JSON</Button>
               </div>
-
-              <!-- Textarea -->
-              <div class="w-full mt-2">
-                <textarea
-                  v-model="sourceJson"
-                  placeholder="Paste your JSON here..."
-                  class="font-mono text-sm pl-3 flex-grow bg-transparent resize-none w-full h-full focus:outline-none"
-                  spellcheck="false"
-                ></textarea>
+              <div
+                class="relative h-full overflow-auto bg-slate-50 border border-slate-300 rounded-lg py-2"
+              >
+                <div class="flex">
+                  <!-- Line Numbers -->
+                  <div
+                    class="bg-slate-100 text-slate-500 font-mono text-sm text-right select-none w-12 flex-shrink-0"
+                  >
+                    <pre class="line-numbers">{{
+                      getLineNumbers(sourceJson)
+                    }}</pre>
+                  </div>
+                  <!-- Textarea -->
+                  <div class="w-full overflow-hidden">
+                    <textarea
+                      v-model="sourceJson"
+                      placeholder="Paste your JSON here..."
+                      class="font-mono text-sm pl-3 flex-grow bg-transparent resize-none w-full min-h-32 focus:outline-none"
+                      spellcheck="false"
+                    ></textarea>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+            <Alert v-if="error" variant="destructive">
+              <AlertDescription>{{ error }}</AlertDescription>
+            </Alert>
 
-        <Alert v-if="error" variant="destructive">
-          <AlertDescription>{{ error }}</AlertDescription>
-        </Alert>
+            <!-- ITEM OPTIONS -->
+            <div v-if="items.length" class="space-y-4 min-w-96 max-w-96">
+              <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold">
+                  Items Configuration ({{ items.length }})
+                </h3>
+                <Button @click="generateResultJson">Generate Result</Button>
+              </div>
 
-        <div v-if="items.length" class="space-y-4">
-          <div class="flex justify-between items-center">
-            <h3 class="text-lg font-semibold">
-              Items Configuration ({{ items.length }})
-            </h3>
-            <Button @click="addNewItem" size="sm">
-              <Plus class="w-4 h-4 mr-2" />
-              Add New Item
-            </Button>
-          </div>
+              <div v-for="(item, index) in items" :key="index">
+                <Card>
+                  <CardContent class="pt-4 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                      <div class="flex items-start space-x-4">
+                        <!-- Select item status -->
+                        <div class="flex-1">
+                          <Label>Status</Label>
+                          <Select
+                            v-model="item.status"
+                            @update:value="
+                              (value: string) =>
+                                handleItemUpdate(index, 'status', value)
+                            "
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="APPROVED">Approved</SelectItem>
+                              <SelectItem value="DENIED">Denied</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-          <div v-for="(item, index) in items" :key="index">
-            <Card>
-              <CardContent class="pt-4 space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="flex items-start space-x-4">
-                    <div class="flex-1">
-                      <Label>Status</Label>
-                      <Select
-                        v-model="item.status"
-                        @update:value="
-                          (value: string) =>
-                            handleItemUpdate(index, 'status', value)
-                        "
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="APPROVED">Approved</SelectItem>
-                          <SelectItem value="DENIED">Denied</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <!-- If its a replacement -->
+                        <div
+                          v-if="item.status === 'APPROVED'"
+                          class="flex items-center pt-8 space-x-2"
+                        >
+                          <Switch
+                            v-model="item.isReplacement"
+                            @update:checked="
+                              checked =>
+                                handleItemUpdate(
+                                  index,
+                                  'isReplacement',
+                                  checked,
+                                )
+                            "
+                          />
+                          <Label>Replacement</Label>
+                        </div>
+                      </div>
                     </div>
-                    <div
-                      v-if="item.status === 'APPROVED'"
-                      class="flex items-center pt-6 space-x-2"
-                    >
-                      <Switch
-                        v-model="item.isReplacement"
-                        @update:checked="
-                          checked =>
-                            handleItemUpdate(index, 'isReplacement', checked)
-                        "
+                    <div class="flex flex-col gap-4">
+                      <Input
+                        v-if="item.status === 'APPROVED'"
+                        placeholder="Master Item Description"
+                        v-model="item.masterItemDesc"
                       />
-                      <Label>Replacement</Label>
+                      <Input
+                        v-if="item.status === 'APPROVED'"
+                        placeholder="Master Item Code"
+                        v-model="item.masterItemCode"
+                      />
+
+                      <Input
+                        v-if="item.status === 'DENIED'"
+                        placeholder="Denial Reason"
+                        v-model="item.denialReason"
+                      />
+                      <Input
+                        v-if="item.status === 'DENIED'"
+                        placeholder="Denial Reason Code"
+                        v-model="item.denialReasonCode"
+                      />
                     </div>
-                  </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <Button @click="addNewItem" size="sm">
+                <Plus class="w-4 h-4 mr-2" />
+                Add New Item
+              </Button>
+            </div>
 
-                  <Input
-                    v-if="item.status === 'APPROVED'"
-                    placeholder="Master Item Description"
-                    v-model="item.masterItemDesc"
-                  />
-                  <Input
-                    v-if="item.status === 'APPROVED'"
-                    placeholder="Master Item Code"
-                    v-model="item.masterItemCode"
-                  />
-
-                  <Input
-                    v-if="item.status === 'DENIED'"
-                    placeholder="Denial Reason"
-                    v-model="item.denialReason"
-                  />
-                  <Input
-                    v-if="item.status === 'DENIED'"
-                    placeholder="Denial Reason Code"
-                    v-model="item.denialReasonCode"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Button @click="generateResultJson">Generate Result</Button>
-        </div>
-
-        <div v-if="result" class="space-y-2">
-          <div class="flex justify-between items-center">
-            <h3 class="text-lg font-semibold">Result</h3>
-            <Button @click="copyToClipboard">Copy to Clipboard</Button>
-          </div>
-          <pre class="bg-slate-100 p-4 rounded-lg overflow-auto">
+            <!-- RESULT COLUMN -->
+            <div v-if="result" class="space-y-2">
+              <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold">Result</h3>
+                <Button @click="copyToClipboard">Copy to Clipboard</Button>
+              </div>
+              <pre class="bg-slate-100 p-4 rounded-lg overflow-auto">
             {{ result }}
-          </pre>
+          </pre
+              >
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -413,7 +428,7 @@ const getLineNumbers = (text: string) => {
 <style scoped>
 .line-numbers {
   margin: 0; /* Remove default margin from <pre> */
-  padding: 8px 0; /* Align numbers with textarea padding */
+  padding: 0; /* Align numbers with textarea padding */
   white-space: pre; /* Preserve formatting for line numbers */
   line-height: 1.5;
 }
@@ -425,7 +440,7 @@ textarea {
   width: 100%; /* Ensure textarea takes the remaining horizontal space */
   border: none; /* Remove inner border */
   resize: none; /* Disable manual resizing */
-  overflow-y: hidden;
+  overflow-y: hidden; /* Enable vertical scrolling */
   overflow-x: auto;
 }
 

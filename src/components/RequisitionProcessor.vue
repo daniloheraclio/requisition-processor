@@ -128,7 +128,7 @@
             </div>
 
             <!-- RESULT COLUMN -->
-            <div v-if="result" class="space-y-2">
+            <div v-if="result" class="space-y-4">
               <div class="flex justify-between items-center">
                 <h3 class="text-lg font-semibold">Result</h3>
                 <Button @click="copyToClipboard">Copy to Clipboard</Button>

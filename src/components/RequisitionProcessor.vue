@@ -36,10 +36,10 @@
                   </div>
                 </div>
               </div>
+              <Alert v-if="error" variant="destructive">
+                <AlertDescription>{{ error }}</AlertDescription>
+              </Alert>
             </div>
-            <Alert v-if="error" variant="destructive">
-              <AlertDescription>{{ error }}</AlertDescription>
-            </Alert>
 
             <!-- ITEM OPTIONS -->
             <div v-if="items.length" class="space-y-4 min-w-96 max-w-96">

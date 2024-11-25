@@ -71,8 +71,13 @@
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="APPROVED">Approved</SelectItem>
-                              <SelectItem value="DENIED">Denied</SelectItem>
+                              <SelectItem
+                                v-for="option in itemStatusesOptions"
+                                :key="option.value"
+                                :value="option.value"
+                              >
+                                {{ option.label }}
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -169,132 +174,18 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Plus } from 'lucide-vue-next'
 import { v4 as uuidv4 } from 'uuid'
+import type {
+  Root,
+  ItemRequest,
+  ItemResponse,
+  Payload,
+  ExtendedItemRequest,
+} from '@/types/requisitionType'
 
-// REQUEST TYPES
-type Address = {
-  postal_code: string
-  street_name: string
-  city: string
-  street_number: string
-  province: string
-  country: string
-}
-
-type Reception = {
-  type: string
-  receive_at: string // ISO 8601 date string
-  instructions: string
-  address: Address
-}
-
-type ItemRequest = {
-  external_reference_number: string
-  quantity: number
-  additional_information: string
-  master_item_guid: string
-  external_system_id: string
-}
-
-type ExtendedItemRequest = ItemRequest & {
-  status: 'APPROVED' | 'DENIED'
-  isReplacement: boolean
-  masterItemDesc: string
-  masterItemCode: string
-  denialReason?: string // Optional if not always used
-  denialReasonCode?: string // Optional if not always used
-}
-
-type Requisition = {
-  external_reference_number: string
-  items: ItemRequest[]
-  reception: Reception
-  external_requisition_date: string // ISO 8601 date string
-  external_system_id: string
-}
-
-type Owner = {
-  type: string
-  name: string
-  code: string
-}
-
-type Destination = {
-  type: string
-  name: string
-  code: string
-  owner: Owner
-}
-
-type Sender = {
-  type: string
-  name: string
-  code: string
-  owner: Owner
-}
-
-type Provider = {
-  name: string
-  number: string
-}
-
-type Root = {
-  requisition: Requisition
-  billing_reference_number: string
-  service_assignment_id: string
-  message_tracking_id: string
-  destination: Destination
-  submitted_by_staff_name: string
-  provider: Provider
-  sender: Sender
-}
-
-// RESPONSE TYPES
-
-type RequisitionHeader = {
-  ExternalSystemId: string
-  ExternalReferenceNumber: string
-  RequisitionGuid: string
-  RequisitionNumber: string
-  RequisitionStatusCode: 'APPROVED' | 'DENIED'
-  RequisitionStatus: string
-  ApprovedByStaffName: string
-  ApprovedDate: string // ISO 8601 date string
-}
-
-type EquipmentAndSuppliesRequisition = {
-  RequisitionHeader: RequisitionHeader
-  LineItem: ItemResponse[]
-}
-
-type ItemResponse = {
-  ExternalReferenceNumber: string
-  MasterItemGuid: string
-  MasterItemCode: string
-  MasterItemDesc: string
-  LineItemGuid: string
-  LineItemNumber: string
-  ItemTypeCode: string
-  ItemType: string
-  ItemUnit: string
-  Quantity: string
-  AdditionalInformation: string
-  LineItemStatusCode: string
-  LineItemStatus: string
-  DenialReasonCode?: string
-  DenialReason?: string
-}
-
-type EquipmentAndSuppliesRequisitionResponse = {
-  Sender: Destination // Assume `Destination` is already defined in your codebase
-  MessageTrackingID: string
-  ServiceAssignmentId: string
-  EquipmentAndSuppliesRequisition: EquipmentAndSuppliesRequisition
-  Destination: Sender // Assume `Sender` is already defined in your codebase
-}
-
-type Payload = {
-  EquipmentAndSuppliesRequisitionResponse: EquipmentAndSuppliesRequisitionResponse
-}
+const itemStatusesOptions = [
+  { label: 'Approved', value: 'APPROVED' },
+  { label: 'Denied', value: 'DENIED' },
+]
 
 const sourceJson = ref('')
 const parsedRequest = ref<Root | null>(null)
@@ -367,6 +258,15 @@ const handleItemUpdate = (
   items.value[index] = { ...items.value[index], [field]: value }
 }
 
+const getMasterGuid = (index: number) => {
+  // if is an aditional item, return a new guid
+  if (!parsedRequest.value?.requisition.items[index]) {
+    return uuidv4()
+  }
+
+  return parsedRequest.value?.requisition.items[index].master_item_guid
+}
+
 const generateResultJson = () => {
   if (!parsedRequest.value) return
 
@@ -390,28 +290,34 @@ const generateResultJson = () => {
             ApprovedDate: new Date().toISOString(),
           },
           LineItem: items.value.map(
-            (item: ExtendedItemRequest): ItemResponse => ({
-              ExternalReferenceNumber: item.external_reference_number,
-              MasterItemGuid: item.isReplacement
-                ? uuidv4()
-                : item.master_item_guid,
-              MasterItemCode: item.masterItemCode || 'Default Code',
-              MasterItemDesc: item.masterItemDesc || 'Default Description',
-              LineItemGuid: uuidv4(),
-              LineItemNumber: '13737880', // Double check this
-              ItemTypeCode: 'XD',
-              ItemType: 'Default Type',
-              ItemUnit: 'unit',
-              Quantity: item.quantity.toString(),
-              AdditionalInformation: item.additional_information,
-              LineItemStatusCode: item.status,
-              LineItemStatus:
-                item.status === 'APPROVED' ? 'Approved' : 'Denied',
-              ...(item.status === 'DENIED' && {
-                DenialReasonCode: item.denialReasonCode,
-                DenialReason: item.denialReason,
-              }),
-            }),
+            (item: ExtendedItemRequest): ItemResponse => {
+              if (item.status === 'DENIED' && item.isReplacement) {
+                item.isReplacement = false
+              }
+
+              return {
+                ExternalReferenceNumber: item.external_reference_number,
+                MasterItemGuid: item.isReplacement
+                  ? uuidv4()
+                  : getMasterGuid(items.value.indexOf(item)),
+                MasterItemCode: item.masterItemCode || 'Default Code',
+                MasterItemDesc: item.masterItemDesc || 'Default Description',
+                LineItemGuid: uuidv4(),
+                LineItemNumber: '13737880', // Double check this
+                ItemTypeCode: 'XD',
+                ItemType: 'Default Type',
+                ItemUnit: 'unit',
+                Quantity: item.quantity.toString(),
+                AdditionalInformation: item.additional_information,
+                LineItemStatusCode: item.status,
+                LineItemStatus:
+                  item.status === 'APPROVED' ? 'Approved' : 'Denied',
+                ...(item.status === 'DENIED' && {
+                  DenialReasonCode: item.denialReasonCode,
+                  DenialReason: item.denialReason,
+                }),
+              }
+            },
           ),
         },
         Destination: parsedRequest.value.sender,
